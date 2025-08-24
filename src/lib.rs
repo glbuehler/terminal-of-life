@@ -1,8 +1,8 @@
 use std::time;
-use std::sync::atomic::{AtomicBool, AtomicI64};
+use std::sync::{RwLock, atomic::{AtomicBool, AtomicI64, AtomicU64}};
+use std::collections::HashSet;
 
 use lazy_static::lazy_static;
-use dashmap::DashSet;
 
 mod simu;
 mod render;
@@ -13,10 +13,10 @@ const RENDER_INTERVAL: time::Duration = time::Duration::from_millis(20);
 
 static CAMERA_OFFSET: (AtomicI64, AtomicI64) = (AtomicI64::new(0), AtomicI64::new(0));
 static PAUSED: AtomicBool = AtomicBool::new(false);
+static SIMULATION_MILLIS: AtomicU64 = AtomicU64::new(80);
 
 lazy_static!(
-    static ref WORLD: Box<DashSet<(i64, i64)>> = Box::new(DashSet::default());
-    static ref NEXT: Box<DashSet<(i64, i64)>> = Box::new(DashSet::default());
+    static ref WORLD: RwLock<HashSet<(i64, i64)>> = RwLock::new(HashSet::default());
 );
 
 pub fn handle_input() {
@@ -25,11 +25,16 @@ pub fn handle_input() {
 
 pub fn spawn_simu() {
 
-    WORLD.insert((0, 0));
-    WORLD.insert((-1, 1));
-    WORLD.insert((1, 0));
-    WORLD.insert((1, 1));
-    WORLD.insert((1, 2));
+    {
+        let mut world = WORLD
+            .write()
+            .expect("failed to acquire write lock on WORLD");
+        world.insert((0, 0));
+        world.insert((-1, 1));
+        world.insert((1, 0));
+        world.insert((1, 1));
+        world.insert((1, 2));
+    }
     
     std::thread::spawn(simu::loop_simu);
 }

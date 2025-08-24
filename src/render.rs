@@ -1,10 +1,6 @@
 use crate::{CAMERA_OFFSET, WORLD};
 use std::io::Write;
 
-pub fn draw_screen() {
-    draw_screen_with_buf(&mut vec![]);
-}
-
 pub fn draw_screen_with_buf(buf: &mut Vec<u8>) {
     let size = crossterm::terminal::size();
     assert!(size.is_ok());
@@ -42,12 +38,17 @@ pub fn draw_screen_with_buf(buf: &mut Vec<u8>) {
 }
 
 fn get_symbol_2x2(x: i64, y: i64) -> char {
-    match (
-        WORLD.contains(&(x, y)),
-        WORLD.contains(&(x + 1, y)),
-        WORLD.contains(&(x, y + 1)),
-        WORLD.contains(&(x + 1, y + 1)),
-    ) {
+    let values;
+    {
+        let world_read = WORLD.read().expect("failed to acquire WORLD read");
+        values = (
+            world_read.contains(&(x, y)),
+            world_read.contains(&(x + 1, y)),
+            world_read.contains(&(x, y + 1)),
+            world_read.contains(&(x + 1, y + 1)),
+        );
+    }
+    match values {
         (false, false, false, false) => ' ',
         (true, false, false, false) => '▘',
         (false, true, false, false) => '▝',
@@ -75,13 +76,24 @@ fn get_symbol_2x3(x: i64, y: i64) -> char {
         '🬳', '🬴', '🬵', '🬶', '🬷', '🬸', '🬹', '🬺', '🬻', '█',
     ];
 
+    let mut values = [false; 6];
+    {
+        let world_read = WORLD.read().expect("failed to acquire WORLD read");
+        values[0] = world_read.contains(&(x + 0, y + 0));
+        values[1] = world_read.contains(&(x + 1, y + 0));
+        values[2] = world_read.contains(&(x + 0, y + 1));
+        values[3] = world_read.contains(&(x + 1, y + 1));
+        values[4] = world_read.contains(&(x + 0, y + 2));
+        values[5] = world_read.contains(&(x + 1, y + 2));
+    }
+
     let mut idx = 0;
-    idx |= if WORLD.contains(&(x + 0, y + 0)) { 1 } else { 0 } << 0;
-    idx |= if WORLD.contains(&(x + 1, y + 0)) { 1 } else { 0 } << 1;
-    idx |= if WORLD.contains(&(x + 0, y + 1)) { 1 } else { 0 } << 2;
-    idx |= if WORLD.contains(&(x + 1, y + 1)) { 1 } else { 0 } << 3;
-    idx |= if WORLD.contains(&(x + 0, y + 2)) { 1 } else { 0 } << 4;
-    idx |= if WORLD.contains(&(x + 1, y + 2)) { 1 } else { 0 } << 5;
+    idx |= if values[0] { 1 } else { 0 } << 0;
+    idx |= if values[1] { 1 } else { 0 } << 1;
+    idx |= if values[2] { 1 } else { 0 } << 2;
+    idx |= if values[3] { 1 } else { 0 } << 3;
+    idx |= if values[4] { 1 } else { 0 } << 4;
+    idx |= if values[5] { 1 } else { 0 } << 5;
 
     SYMBOLS[idx]
 }
